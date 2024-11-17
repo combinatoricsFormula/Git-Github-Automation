@@ -83,7 +83,10 @@
     		echo "GPG key already exists. Skipping key generation."
 		
 	fi
+	echo " Your public keys are: "
 	cat ~/.gnupg/pubring.kbx
+	echo " Now add to your github under the ssh key seetings"
+
 
 # 8 Status Check
 
