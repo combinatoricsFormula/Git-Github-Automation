@@ -70,20 +70,12 @@
 	cat ~/.ssh/id_rsa.pub
 	echo " Now add to your github under the ssh key seetings"
 # 7 Status Check
-	echo "# Git_Course" >> README.md
-	git init
-	git add README.md
-	git commit -m "first commit"
-	git branch -M main
-	git remote add origin git@github.com:Combinatorics-AMEARMathews/Git_Course.git
-	git push -u origin main
 
-	git remote add Git_Course git@github.com:Combinatorics-AMEARMathews/Git_Course.git
+	echo "Your commit description"
+	read comments
+	git commit -m "$comments"
 	git branch -M main
-	git push -u origin main
 	git status
-	git checkout -b master
-	git push Git_Course  master
 
 	url ="git@github.com:Combinatorics-AMEARMathews/Git_Course.git"
 	echo "Connecting to the remote Github repository : $url"
@@ -93,10 +85,10 @@
 
 	echo " Pushing to github"
 	git branch -a
-	git push -u Git_Course main
+	git push -u git_course main
 
 # 9 Verifying Github
 
 	git remote -v
 
-	git remote show Git_Course
+	git remote show git_course
