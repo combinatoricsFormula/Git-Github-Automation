@@ -11,7 +11,7 @@
 
 	else
 		echo "Git is installed"
-	
+
 	fi
 	### Let us make sure istallation is successful
 	git --version
@@ -43,7 +43,7 @@
 	fi
 
 # 5 Intitialization / staging / commit phases
-	
+
 	git init
 	echo "Do you want to add or commit all files?"
 	echo "For all files, Enter: '.' otherwise provide a file name."
@@ -69,7 +69,23 @@
 	echo " Your public keys are: "
 	cat ~/.ssh/id_rsa.pub
 	echo " Now add to your github under the ssh key seetings"
-# 7 Status Check
+
+# 7 Installation GPG
+
+	# Check if a GPG key exists by looking for the directory where GPG keys are stored
+	if [ ! -f ~/.gnupg/pubring.kbx ]; then
+    		echo "No GPG key found. Generating a new key..."
+    		gpg --full-generate-key  # Prompt user to create a GPG key
+    		GPG_KEY=$(gpg --list-secret-keys --keyid-format LONG | grep -oP "(?<=/)[A-F0-9]{16}" | head -n 1)  # Get the generated key ID
+    		git config --global user.signingkey "$GPG_KEY"  # Set the GPG key for signing
+    		echo "GPG key generated and configured for Git."
+	else
+    		echo "GPG key already exists. Skipping key generation."
+		
+	fi
+	cat ~/.gnupg/pubring.kbx
+
+# 8 Status Check
 
 	echo "Your commit description"
 	read comments
@@ -77,17 +93,17 @@
 	git branch -M main
 	git status
 
-	url ="git@github.com:Combinatorics-AMEARMathews/Git_Course.git"
+	url ="git@github.com:Combinatorics-AMEARMathews/git_course.git"
 	echo "Connecting to the remote Github repository : $url"
 	git remote add Git_Course $url
 
-# 8 pushing changes to Github
+# 9 pushing changes to Github
 
 	echo " Pushing to github"
 	git branch -a
 	git push -u git_course main
 
-# 9 Verifying Github
+# 10 Verifying Github
 
 	git remote -v
 
