@@ -16,7 +16,6 @@ install_if_missing() {
 # Function to generate SSH key if not exists
 generate_ssh_key() {
     local email="$1"
-    # Check if SSH keys already exist
     if [ ! -f ~/.ssh/id_rsa ] || [ ! -f ~/.ssh/id_rsa.pub ]; then
         echo "SSH key not found. Generating a new SSH key..."
         ssh-keygen -t rsa -b 4096 -C "$email" -f ~/.ssh/id_rsa -N "" || {
@@ -27,16 +26,13 @@ generate_ssh_key() {
         echo "SSH key already exists. Skipping SSH key generation."
     fi
 
-    # Ensure the correct permissions for the SSH key files
     chmod 600 ~/.ssh/id_rsa
     chmod 644 ~/.ssh/id_rsa.pub
 
-    # Display the public SSH key and prompt the user to add it to GitHub
     echo "Your public SSH key is:"
     cat ~/.ssh/id_rsa.pub
     echo "Please add this SSH key to your GitHub account under 'Settings' -> 'SSH and GPG keys'."
     
-    # Start SSH agent and add the key
     echo "Starting the SSH agent..."
     eval "$(ssh-agent -s)"
     ssh-add ~/.ssh/id_rsa || {
@@ -44,7 +40,6 @@ generate_ssh_key() {
         exit 1;
     }
 
-    # Verify SSH connection to GitHub
     verify_ssh_connection
 }
 
@@ -67,7 +62,6 @@ verify_ssh_connection() {
 
 # Function to generate GPG key if not exists
 generate_gpg_key() {
-    # Check if GPG keys already exist
     if [ ! -f ~/.gnupg/pubring.kbx ]; then
         echo "No GPG key found. Generating a new GPG key..."
         gpg --full-generate-key || {
@@ -97,6 +91,19 @@ set_gpg_key() {
     else
         echo "Using the default GPG key for commit signing."
     fi
+}
+
+# Function to configure GitHub user settings
+configure_github_user() {
+    echo "Enter your GitHub username:"
+    read github_username
+    git config --global user.name "$github_username"
+    
+    echo "Enter your GitHub email address:"
+    read github_email
+    git config --global user.email "$github_email"
+
+    echo "GitHub user configuration complete."
 }
 
 # Function to create or select a GitHub repository
@@ -176,7 +183,21 @@ generate_ssh_key "$user_email"
 generate_gpg_key
 set_gpg_key
 
-# Step 3: Ask User for Repository Setup
+# Step 3: Configure GitHub User Information
+configure_github_user
+
+# Optional Step: Display GitHub Configuration
+echo "Do you want to see your GitHub configuration? (y/n)"
+read show_config
+if [[ "$show_config" == "y" || "$show_config" == "Y" ]]; then
+    echo "GitHub configuration details:"
+    git config --list --show-origin
+    echo "Proceeding with the rest of the script..."
+else
+    echo "Skipping GitHub configuration details."
+fi
+
+# Step 4: Ask User for Repository Setup
 echo "Do you want to use the current directory as the repository, create another directory, or choose from your GitHub repositories? (current/new/github)"
 read repo_choice
 
@@ -188,6 +209,10 @@ if [ "$repo_choice" == "current" ]; then
     echo "Enter the file name to modify (or provide a new file name with extension):"
     read file_name
     nano "$file_name"
+    # Automatically create the 'main' branch if the local repo is empty
+    git checkout -b main
+    git push -u origin main
+
 elif [ "$repo_choice" == "new" ]; then
     echo "Enter the name of the new repository directory:"
     read new_repo_name
@@ -196,9 +221,11 @@ elif [ "$repo_choice" == "new" ]; then
     echo "Enter the file name to create (with extension):"
     read new_file_name
     nano "$new_file_name"
+    # Automatically create the 'main' branch
+    git checkout -b main
+    git push -u origin main
+
 elif [ "$repo_choice" == "github" ]; then
-    echo "Enter your GitHub username:"
-    read github_username
     echo "Enter your GitHub Personal Access Token (PAT):"
     read -s github_token
     echo "Fetching your GitHub repositories..."
@@ -208,29 +235,13 @@ elif [ "$repo_choice" == "github" ]; then
     echo "Enter the name of the repository to use:"
     read github_repo_name
     create_or_select_github_repo "$github_username" "$github_token" "$github_repo_name"
-    echo "Fetching branches for repository '$github_repo_name'..."
-    branches=$(curl -s -H "Authorization: token $github_token" "https://api.github.com/repos/$github_username/$github_repo_name/branches" | jq -r '.[].name')
-    echo "Existing branches in '$github_repo_name':"
-    echo "$branches"
-    echo "Enter the branch you want to use (or create a new branch):"
-    read branch_name
-    branch_name=${branch_name:-main}  # Default to 'main' if nothing is entered
-    if ! echo "$branches" | grep -q "$branch_name"; then
-        echo "Branch '$branch_name' does not exist. Creating it..."
-        git checkout -b "$branch_name"
-        git push -u origin "$branch_name"
-    else
-        git checkout "$branch_name"
-    fi
-    echo "Enter the file name to modify (or provide a new file name with extension):"
-    read file_name
-    nano "$file_name"
+
 else
     echo "Invalid choice. Exiting."
     exit 1
 fi
 
-# Step 4: Commit Changes
+# Step 5: Commit Changes
 echo "Do you want to commit changes from the entire directory or a specific file? (all/specific)"
 read commit_choice
 if [ "$commit_choice" == "all" ]; then
@@ -244,7 +255,7 @@ echo "Enter your commit message:"
 read commit_message
 git commit -S -m "$commit_message" || { echo "Failed to sign commit with GPG."; exit 1; }
 
-# Step 5: Push Changes to GitHub
+# Step 6: Push Changes to GitHub
 echo "Pushing changes to GitHub..."
 git push origin "$branch_name" || { echo "Failed to push changes to GitHub."; exit 1; }
 
