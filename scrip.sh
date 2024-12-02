@@ -87,6 +87,18 @@ generate_gpg_key() {
     git config --global commit.gpgSign true
 }
 
+# Function to allow the user to manually enter their personal GPG key for commit signing
+set_gpg_key() {
+    echo "Enter your GPG key ID for commit signing (Leave blank to use the default key):"
+    read user_gpg_key
+    if [[ -n "$user_gpg_key" ]]; then
+        git config --global user.signingkey "$user_gpg_key"
+        echo "Using the GPG key ID $user_gpg_key for commit signing."
+    else
+        echo "Using the default GPG key for commit signing."
+    fi
+}
+
 # Function to create or select a GitHub repository
 create_or_select_github_repo() {
     local username="$1"
@@ -162,6 +174,7 @@ echo "Enter your email address for SSH key generation:"
 read user_email
 generate_ssh_key "$user_email"
 generate_gpg_key
+set_gpg_key
 
 # Step 3: Ask User for Repository Setup
 echo "Do you want to use the current directory as the repository, create another directory, or choose from your GitHub repositories? (current/new/github)"
