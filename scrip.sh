@@ -138,19 +138,28 @@ create_or_select_github_repo() {
     echo "$branch_names"
 
     # Ask user to select a branch or create a new one
-    echo "Enter the branch you want to push to (or create a new branch):"
+    echo "Enter the branch you want to push to (or create a new branch, default is 'main'):"
     read branch_name
     branch_name=${branch_name:-main}  # Default to 'main' if nothing is entered
 
-    # Check if the branch exists on GitHub, if not create it
-    if ! echo "$branch_names" | grep -q "$branch_name"; then
-        echo "Branch '$branch_name' does not exist on GitHub. Creating the branch..."
+    if echo "$branch_names" | grep -q "$branch_name"; then
+        echo "Branch '$branch_name' already exists. You can continue with it or create a new one. Would you like to create a new branch? (y/n)"
+        read create_new_branch
+        if [[ "$create_new_branch" == "y" || "$create_new_branch" == "Y" ]]; then
+            echo "Creating new branch '$branch_name'..."
+            git checkout -b "$branch_name"
+            git push -u origin "$branch_name"
+            echo "Branch '$branch_name' created and pushed to GitHub."
+        else
+            git checkout "$branch_name"
+            echo "Using existing branch '$branch_name'."
+        fi
+    else
+        # Branch doesn't exist, so create it
+        echo "Branch '$branch_name' does not exist. Creating the branch..."
         git checkout -b "$branch_name"
         git push -u origin "$branch_name"
         echo "Branch '$branch_name' created and pushed to GitHub."
-    else
-        echo "Branch '$branch_name' exists. Switching to it and pushing changes..."
-        git checkout "$branch_name"
     fi
 
     # Set the remote repository URL and push changes
@@ -164,6 +173,14 @@ create_or_select_github_repo() {
     echo "Verifying remote repository setup..."
     git remote -v
     git remote show origin
+}
+
+# Function to show the file that was modified
+show_file_modifications() {
+    local file_name="$1"
+    echo "File '$file_name' was modified."
+    echo "Changes made:"
+    git diff -- "$file_name"
 }
 
 # Main script starts here
@@ -186,17 +203,6 @@ set_gpg_key
 # Step 3: Configure GitHub User Information
 configure_github_user
 
-# Optional Step: Display GitHub Configuration
-echo "Do you want to see your GitHub configuration? (y/n)"
-read show_config
-if [[ "$show_config" == "y" || "$show_config" == "Y" ]]; then
-    echo "GitHub configuration details:"
-    git config --list --show-origin
-    echo "Proceeding with the rest of the script..."
-else
-    echo "Skipping GitHub configuration details."
-fi
-
 # Step 4: Ask User for Repository Setup
 echo "Do you want to use the current directory as the repository, create another directory, or choose from your GitHub repositories? (current/new/github)"
 read repo_choice
@@ -209,7 +215,7 @@ if [ "$repo_choice" == "current" ]; then
     echo "Enter the file name to modify (or provide a new file name with extension):"
     read file_name
     nano "$file_name"
-    # Automatically create the 'main' branch if the local repo is empty
+    show_file_modifications "$file_name"
     git checkout -b main
     git push -u origin main
 
@@ -221,7 +227,6 @@ elif [ "$repo_choice" == "new" ]; then
     echo "Enter the file name to create (with extension):"
     read new_file_name
     nano "$new_file_name"
-    # Automatically create the 'main' branch
     git checkout -b main
     git push -u origin main
 
@@ -235,7 +240,6 @@ elif [ "$repo_choice" == "github" ]; then
     echo "Enter the name of the repository to use:"
     read github_repo_name
     create_or_select_github_repo "$github_username" "$github_token" "$github_repo_name"
-
 else
     echo "Invalid choice. Exiting."
     exit 1
@@ -251,6 +255,7 @@ else
     read commit_file
     git add "$commit_file"
 fi
+
 echo "Enter your commit message:"
 read commit_message
 git commit -S -m "$commit_message" || { echo "Failed to sign commit with GPG."; exit 1; }
