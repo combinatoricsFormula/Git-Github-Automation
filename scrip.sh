@@ -164,10 +164,25 @@ create_or_select_github_repo() {
 
     # Set the remote repository URL and push changes
     git remote add origin "git@github.com:$username/$repo_name.git" || git remote set-url origin "git@github.com:$username/$repo_name.git"
-    git push -u origin "$branch_name" || {
-        echo "Failed to push changes to GitHub.";
-        exit 1;
-    }
+    push_output=$(git push -u origin "$branch_name" 2>&1)
+    push_status=$?
+
+    if [ $push_status -ne 0 ]; then
+        echo "Push failed with the following error:"
+        echo "$push_output"
+        if echo "$push_output" | grep -q "Authentication failed"; then
+            echo "Authentication failed. Please check your SSH key or GitHub token."
+        elif echo "$push_output" | grep -q "non-fast-forward"; then
+            echo "Push failed: The local branch is behind the remote branch. Try pulling the changes before pushing."
+        elif echo "$push_output" | grep -q "rejected"; then
+            echo "Push failed: The push was rejected by the remote repository. Verify your permissions and branch configuration."
+        else
+            echo "An unknown error occurred during push. Please review the above message for more details."
+        fi
+        exit 1
+    else
+        echo "Push successful!"
+    fi
 
     # Verify remote repository
     echo "Verifying remote repository setup..."
@@ -194,24 +209,18 @@ done
 
 # Step 2: Check Credentials
 echo "Checking credentials..."
-echo "Enter your email address for SSH key generation:"
-read user_email
-generate_ssh_key "$user_email"
+generate_ssh_key "your_email@example.com"
 generate_gpg_key
 set_gpg_key
-
-# Step 3: Configure GitHub User Information
 configure_github_user
 
-# Step 4: Ask User for Repository Setup
+# Step 3: Ask User for Repository Setup
 echo "Do you want to use the current directory as the repository, create another directory, or choose from your GitHub repositories? (current/new/github)"
 read repo_choice
 
 if [ "$repo_choice" == "current" ]; then
     echo "Using the current directory as the repository."
-    echo "Current directory: $(pwd)"
-    echo "Files in the current directory:"
-    ls -l
+    git init
     echo "Enter the file name to modify (or provide a new file name with extension):"
     read file_name
     nano "$file_name"
@@ -224,6 +233,7 @@ elif [ "$repo_choice" == "new" ]; then
     read new_repo_name
     mkdir -p "$new_repo_name"
     cd "$new_repo_name" || exit 1
+    git init
     echo "Enter the file name to create (with extension):"
     read new_file_name
     nano "$new_file_name"
@@ -245,7 +255,7 @@ else
     exit 1
 fi
 
-# Step 5: Commit Changes
+# Step 4: Commit Changes
 echo "Do you want to commit changes from the entire directory or a specific file? (all/specific)"
 read commit_choice
 if [ "$commit_choice" == "all" ]; then
@@ -260,7 +270,7 @@ echo "Enter your commit message:"
 read commit_message
 git commit -S -m "$commit_message" || { echo "Failed to sign commit with GPG."; exit 1; }
 
-# Step 6: Push Changes to GitHub
+# Step 5: Push Changes to GitHub
 echo "Pushing changes to GitHub..."
 git push origin "$branch_name" || { echo "Failed to push changes to GitHub."; exit 1; }
 
