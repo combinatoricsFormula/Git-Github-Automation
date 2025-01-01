@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Function to check if a command exists and install it if not
+# Function to check if a command exists and install it if missing
 install_if_missing() {
     if ! command -v "$1" &> /dev/null; then
         echo "$1 is not installed. Installing..."
         sudo apt update && sudo apt install -y "$1" || {
-            echo "Failed to install $1. Please ensure you have sudo privileges.";
-            exit 1;
+            echo "Failed to install $1. Please ensure you have sudo privileges."
+            exit 1
         }
     else
         echo "$1 is already installed."
@@ -19,8 +19,8 @@ generate_ssh_key() {
     if [ ! -f ~/.ssh/id_rsa ] || [ ! -f ~/.ssh/id_rsa.pub ]; then
         echo "SSH key not found. Generating a new SSH key..."
         ssh-keygen -t rsa -b 4096 -C "$email" -f ~/.ssh/id_rsa -N "" || {
-            echo "Failed to generate SSH key. Please check your SSH configuration.";
-            exit 1;
+            echo "Failed to generate SSH key. Please check your SSH configuration."
+            exit 1
         }
     else
         echo "SSH key already exists. Skipping SSH key generation."
@@ -36,11 +36,41 @@ generate_ssh_key() {
     echo "Starting the SSH agent..."
     eval "$(ssh-agent -s)"
     ssh-add ~/.ssh/id_rsa || {
-        echo "Failed to add SSH key to the agent. Please check your SSH configuration.";
-        exit 1;
+        echo "Failed to add SSH key to the agent. Please check your SSH configuration."
+        exit 1
     }
 
+    # Upload SSH key to GitHub
+    upload_ssh_key_to_github
     verify_ssh_connection
+}
+
+# Function to upload SSH public key to GitHub
+upload_ssh_key_to_github() {
+    echo "Enter your GitHub Personal Access Token (PAT) to upload the SSH key:"
+    read -s github_token
+
+    # Option to save the PAT to a file for later use
+    echo "Would you like to save your GitHub Personal Access Token (PAT) for future use? (y/n)"
+    read save_pat_choice
+    if [[ "$save_pat_choice" == "y" || "$save_pat_choice" == "Y" ]]; then
+        # Save the token to a file (ensure the file is excluded from git commits)
+        echo "$github_token" > ~/.github_pat.txt
+        echo "GitHub Personal Access Token saved to ~/.github_pat.txt for future use."
+    fi
+
+    ssh_key_title="My SSH Key"
+    ssh_key=$(cat ~/.ssh/id_rsa.pub)
+
+    # GitHub API endpoint to upload SSH key
+    curl -X POST -H "Authorization: token $github_token" \
+        -d "{\"title\":\"$ssh_key_title\", \"key\":\"$ssh_key\"}" \
+        "https://api.github.com/user/keys" || {
+            echo "Failed to upload SSH key to GitHub. Please check your token and GitHub settings."
+            exit 1
+        }
+
+    echo "SSH public key uploaded to GitHub successfully!"
 }
 
 # Function to verify SSH connection to GitHub
@@ -60,13 +90,25 @@ verify_ssh_connection() {
     fi
 }
 
+# Function to retrieve PAT from file if it exists
+retrieve_github_pat() {
+    if [ -f ~/.github_pat.txt ]; then
+        echo "Retrieving saved GitHub Personal Access Token..."
+        github_token=$(cat ~/.github_pat.txt)
+        echo "GitHub Personal Access Token retrieved successfully!"
+    else
+        echo "No saved GitHub Personal Access Token found."
+        return 1
+    fi
+}
+
 # Function to generate GPG key if not exists
 generate_gpg_key() {
     if [ ! -f ~/.gnupg/pubring.kbx ]; then
         echo "No GPG key found. Generating a new GPG key..."
         gpg --full-generate-key || {
-            echo "Failed to generate GPG key. Please ensure GPG is installed.";
-            exit 1;
+            echo "Failed to generate GPG key. Please ensure GPG is installed."
+            exit 1
         }
         GPG_KEY=$(gpg --list-secret-keys --keyid-format LONG | grep -oP "(?<=/)[A-F0-9]{16}" | head -n 1)
         git config --global user.signingkey "$GPG_KEY"
@@ -138,7 +180,7 @@ create_or_select_github_repo() {
     echo "$branch_names"
 
     # Ask user to select a branch or create a new one
-    echo "Enter the branch you want to push to (or create a new branch, default is 'main'):"
+    echo "Enter the branch you want to push to (or create a new branch, default is 'main'):" 
     read branch_name
     branch_name=${branch_name:-main}  # Default to 'main' if nothing is entered
 
@@ -241,8 +283,12 @@ elif [ "$repo_choice" == "new" ]; then
     git push -u origin main
 
 elif [ "$repo_choice" == "github" ]; then
-    echo "Enter your GitHub Personal Access Token (PAT):"
-    read -s github_token
+    # Try to retrieve the PAT from file if exists
+    retrieve_github_pat
+    if [ $? -ne 0 ]; then
+        echo "Enter your GitHub Personal Access Token (PAT):"
+        read -s github_token
+    fi
     echo "Fetching your GitHub repositories..."
     repos=$(curl -s -H "Authorization: token $github_token" https://api.github.com/user/repos | jq -r '.[].name')
     echo "Your GitHub repositories:"
@@ -275,4 +321,3 @@ echo "Pushing changes to GitHub..."
 git push origin "$branch_name" || { echo "Failed to push changes to GitHub."; exit 1; }
 
 echo "Process complete."
-
