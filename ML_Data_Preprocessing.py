@@ -20,7 +20,14 @@ Data Inspection - Useful Functions:
 --> data.head()
 --> dat.dtypes
 --> data.isnull().sum()
---> data.to_datetime(data['column'], errors='coerce')
+--> data.to_datetime(data['col'], errors='coerce')
+--> data[dat['col'] < 0 -- outliers
+--> data.duplicate(subset = ["col","col"], keep = false)
+--> data["col"].str.strip().str.title()
+--> data[~data["col"].between(start, end)]
+--> data["col"].value_counts()
+--> data["col"].str.contains(r"[regex flags]{2,}", na=False)
+--> data.isnull().sum(axis=1) + (data["col"] < 0) + ~data["col"].notnull()
 
 ************************ Using Pandas get_dummies ***************************************
 """
