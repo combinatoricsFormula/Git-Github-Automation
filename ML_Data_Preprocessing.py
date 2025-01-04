@@ -18,6 +18,9 @@ Data Inspection - Useful Functions:
 --> data.info()
 --> data.describe()
 --> data.head()
+--> dat.dtypes
+--> data.isnull().sum()
+--> data.to_datetime(data['column'], errors='coerce')
 
 ************************ Using Pandas get_dummies ***************************************
 """
