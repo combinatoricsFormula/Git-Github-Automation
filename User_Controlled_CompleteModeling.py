@@ -3,7 +3,7 @@ import numpy as np
 import tkinter as tk
 from tkinter import filedialog
 from sklearn.datasets import load_iris, load_wine, load_breast_cancer
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.feature_selection import RFE
 from sklearn.linear_model import Lasso, LinearRegression
@@ -161,6 +161,9 @@ def evaluate_models(X_train, X_test, y_train, y_test, models):
 def main():
     # Load and preprocess data
     df = load_data()
+    print("\nInitial Data Preview (First 5 Rows):")
+    print(df.head())  # Show the first 5 rows of the dataset for the user to inspect
+    
     df = preprocess_data(df)
     df = encode_categorical(df)
     
