@@ -15,46 +15,78 @@ from sklearn.metrics import classification_report, confusion_matrix, accuracy_sc
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 
 # Function to load data
 def load_data():
-    choice = input("Do you want to load a dataset from your local machine? (yes/no): ").strip().lower()
-    if choice == 'yes':
-        root = tk.Tk()
-        root.withdraw()
-        file_path = filedialog.askopenfilename()
-        if file_path:
-            df = pd.read_csv(file_path)
-            return df
-        else:
-            print("No file selected. Exiting...")
-            exit()
-    else:
-        print("Generating a sample dataset...")
-        dataset_choice = input("Choose a dataset (iris/wine/breast_cancer) or press enter for a random dataset: ").strip().lower()
-        if dataset_choice == 'iris':
-            data = load_iris()
-        elif dataset_choice == 'wine':
-            data = load_wine()
-        elif dataset_choice == 'breast_cancer':
-            data = load_breast_cancer()
-        elif dataset_choice == '':
-            print("No dataset chosen, generating random data...")
-            # Create random data with 10 features and 100 samples
-            n_features = 10
-            n_samples = 100
-            np.random.seed(42)
-            data = np.random.rand(n_samples, n_features)
-            df = pd.DataFrame(data, columns=[f"feature{i}" for i in range(1, n_features + 1)])
-            # Add a random target variable
-            df['target'] = np.random.randint(0, 2, size=n_samples)  # Binary target (0 or 1)
-            return df
-        else:
-            print("Invalid choice. Defaulting to iris dataset.")
-            data = load_iris()
-        df = pd.DataFrame(data.data, columns=data.feature_names)
-        df['target'] = data.target
-        return df
+    while True:
+        try:
+            choice = input("Do you want to load a dataset from your local machine? (yes/no): ").strip().lower()
+            if choice == 'yes':
+                # Ask the user whether they want to pick a file from the current directory or browse another folder
+                folder_choice = input("Do you want to select a file from the current directory? (yes/no): ").strip().lower()
+
+                if folder_choice == 'yes':
+                    # Get the current directory and filter .csv files
+                    current_directory = os.getcwd()
+                    csv_files = [f for f in os.listdir(current_directory) if f.endswith('.csv')]
+
+                    if csv_files:
+                        print("Available .csv files in the current directory:")
+                        for idx, file in enumerate(csv_files, start=1):
+                            print(f"{idx}. {file}")
+
+                        # Ask the user to select a file
+                        file_idx = int(input(f"Select a file (1-{len(csv_files)}): ")) - 1
+                        file_path = os.path.join(current_directory, csv_files[file_idx])
+                    else:
+                        print("No .csv files found in the current directory.")
+                        file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+
+                else:
+                    # Browse another folder
+                    root = tk.Tk()
+                    root.withdraw()
+                    file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+
+                if file_path:
+                    df = pd.read_csv(file_path)
+                    return df
+                else:
+                    print("No file selected. Exiting...")
+                    exit()
+            else:
+                print("Generating a sample dataset...")
+                dataset_choice = input("Choose a dataset (iris/wine/breast_cancer) or press enter for a random dataset: ").strip().lower()
+                if dataset_choice == 'iris':
+                    data = load_iris()
+                elif dataset_choice == 'wine':
+                    data = load_wine()
+                elif dataset_choice == 'breast_cancer':
+                    data = load_breast_cancer()
+                elif dataset_choice == '':
+                    print("No dataset chosen, generating random data...")
+                    # Create random data with 10 features and 100 samples
+                    n_features = 10
+                    n_samples = 100
+                    np.random.seed(42)
+                    data = np.random.rand(n_samples, n_features)
+                    df = pd.DataFrame(data, columns=[f"feature{i}" for i in range(1, n_features + 1)])
+                    # Add a random target variable
+                    df['target'] = np.random.randint(0, 2, size=n_samples)  # Binary target (0 or 1)
+                    return df
+                else:
+                    print("Invalid choice. Defaulting to iris dataset.")
+                    data = load_iris()
+                df = pd.DataFrame(data.data, columns=data.feature_names)
+                df['target'] = data.target
+                return df
+        except Exception as e:
+            print(f"An error occurred while accessing the file system: {e}")
+            retry_choice = input("There was an error accessing your environment. Do you want to try again? (yes/no): ").strip().lower()
+            if retry_choice != 'yes':
+                print("Exiting program...")
+                exit()
 
 # Function to handle missing values, duplicates, and outliers
 def preprocess_data(df):
